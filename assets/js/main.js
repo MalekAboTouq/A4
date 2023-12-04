@@ -233,19 +233,6 @@ function updateFavoritesInLocalStorage(countryCode) {
     localStorage.setItem('favorites', JSON.stringify(favorites));
 }
 
-//load favorites from local storage
-// function loadFavoritesFromLocalStorage() {
-//     const favorites = JSON.parse(localStorage.getItem('favorites')) || [];
-
-//     favorites.forEach(countryCode => {
-//         const star = document.querySelector(`.favorite-star[data-country-code="${countryCode}"]`);
-//         if (star) {
-//             star.classList.add('filled');
-//         }
-//     });
-// }
-
-
 
 function handleCountryCardClick(countryName, event) {
     if (event.target.classList.contains('favorite-star')) {
