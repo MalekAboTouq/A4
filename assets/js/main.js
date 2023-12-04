@@ -1,10 +1,9 @@
 const loadingIndicator = document.getElementById('loadingIndicator');
 const faviconsContainer = document.querySelector('.favicons');
 let allCountries = [];
-
 const fetchCountries = async () => {
     try {
-        loadingIndicator.style.display = 'block';
+        // loadingIndicator.style.display = 'block';
         await new Promise(resolve => setTimeout(resolve, 2000));
 
         const response = await fetch('https://restcountries.com/v3.1/all');
@@ -13,7 +12,7 @@ const fetchCountries = async () => {
         }
 
         const data = await response.json();
-        loadingIndicator.style.display = 'none';
+        // loadingIndicator.style.display = 'none';
         return data;
     } catch (error) {
         console.error(error.message);
@@ -22,10 +21,9 @@ const fetchCountries = async () => {
             errorMessageElement.textContent = 'Error fetching countries. Please try again later.';
         }
         loadingIndicator.style.display = 'none';
+        throw error; // rethrow the error to handle it in the main file if needed
     }
 };
-
-
 const filterByRegion = (selectedRegion) => {
     console.log('Selected Region:', selectedRegion);
 
@@ -56,6 +54,16 @@ const filterByRegion = (selectedRegion) => {
     renderCountries(filteredCountries);
     dropdownButton.textContent = `${selectedRegion}`;
 };
+
+
+// Add event listeners for dropdown items
+document.querySelectorAll('.dropdown-item').forEach(item => {
+    item.addEventListener('click', function () {
+        const selectedRegion = this.dataset.region;
+        filterByRegion(selectedRegion);
+    });
+});
+
 function getFavoriteCountries() {
     const favorites = JSON.parse(localStorage.getItem('favorites')) || [];
     const favoriteCountries = allCountries.filter(country => favorites.includes(getCountryCode(country)));
@@ -140,9 +148,10 @@ const renderCountries = (countries) => {
                         <p class="card-text text-truncate"><span class="bold">Population:</span> ${population}</p>
                         <p class="card-text text-truncate"><span class="bold">Region:</span> ${region}</p>
                         <p class="card-text text-truncate"><span class="bold">Capital:</span> ${capital}</p>
-                        <button class="favorite-star ${starClass}" onclick="toggleFavorite(this, '${countryCode}')">
+                        <button class="favorite-star ${starClass}" data-countryCode="${countryCode}">
                             &#9733;
                         </button>
+
                     </div>
                 </div>
             `;
@@ -154,6 +163,16 @@ const renderCountries = (countries) => {
         loadFavoritesFromLocalStorage();
     }
 };
+// Add a click event listener to each star
+document.querySelectorAll('.favorite-star').forEach(star => {
+    star.addEventListener('click', function () {
+        const countryCode = this.dataset.countryCode;
+        // Toggle the 'filled' class when the star is clicked
+        this.classList.toggle('filled');
+        // Update the favorites in local storage based on the star click
+        updateFavoritesInLocalStorage(countryCode);
+    });
+});
 
 // Function to check if the country is in favorites
 function isCountryInFavorites(countryCode) {
@@ -178,14 +197,16 @@ function toggleFavorite(star) {
         removeFromFavorites(countryCode);
     }
 }
+// Add event listener for country card clicks
+document.addEventListener('click', function (event) {
+    const target = event.target;
 
-// Function to check if a country is in favorites
-function isCountryInFavorites(countryCode) {
-    const favorites = JSON.parse(localStorage.getItem('favorites')) || [];
-    return favorites.includes(countryCode);
-}
-
-
+    // Check if the clicked element is a favorite star
+    if (target.classList.contains('favorite-star')) {
+        const countryCode = target.dataset.countryCode;
+        toggleFavorite(target, countryCode);
+    }
+});
 
 
 // Add a click event listener to each star
@@ -213,16 +234,16 @@ function updateFavoritesInLocalStorage(countryCode) {
 }
 
 //load favorites from local storage
-function loadFavoritesFromLocalStorage() {
-    const favorites = JSON.parse(localStorage.getItem('favorites')) || [];
+// function loadFavoritesFromLocalStorage() {
+//     const favorites = JSON.parse(localStorage.getItem('favorites')) || [];
 
-    favorites.forEach(countryCode => {
-        const star = document.querySelector(`.favorite-star[data-country-code="${countryCode}"]`);
-        if (star) {
-            star.classList.add('filled');
-        }
-    });
-}
+//     favorites.forEach(countryCode => {
+//         const star = document.querySelector(`.favorite-star[data-country-code="${countryCode}"]`);
+//         if (star) {
+//             star.classList.add('filled');
+//         }
+//     });
+// }
 
 
 
@@ -294,42 +315,66 @@ function addToFavorites(draggedCard) {
     const countryCode = draggedCard.dataset.countryCode;
     const countryName = draggedCard.dataset.countryName;
 
-
-    //Check if the country is already in favorites
+    // Check if the country is already in favorites
     if (faviconsContainer.querySelector(`[data-country-code="${countryCode}"]`)) {
         return;
     }
+
+    // Get the full country name
+    const fullCountryName = draggedCard.querySelector('.card-title').textContent;
 
     const favoriteCard = document.createElement('div');
     favoriteCard.classList.add('favorite-card', 'd-flex', 'align-items-center', 'justify-content-between');
     favoriteCard.dataset.countryCode = countryCode;
 
-    //small image
+    // Create a div for content
+    const contentDiv = document.createElement('div');
+    contentDiv.classList.add('d-flex', 'align-items-center');
+    contentDiv.style.width = '154px'; // Set the desired width
+
+    
+    // Small image
     const img = document.createElement('img');
     img.src = draggedCard.querySelector('img').src;
     img.alt = countryCode;
-    img.style.width = '30px';
+    img.style.width = '35px';
+    img.style.height = '20px';
     img.style.cursor = 'pointer';
+    img.style.borderRadius = '0.3rem';
     img.addEventListener('click', () => handleCountryCardClick(countryCode));
 
-    //span for country name
+    // Span for country name
     const countryNameSpan = document.createElement('span');
-    countryNameSpan.textContent = draggedCard.querySelector('.card-title').textContent;
+    countryNameSpan.textContent = countryName;
     countryNameSpan.classList.add('text-truncate');
-    countryNameSpan.style.marginRight = '10px';
-    countryNameSpan.style.cursor = 'pointer';
-    countryNameSpan.addEventListener('click', () => window.location.href = `country.html?country=${encodeURIComponent(countryName)}`);
-    favoriteCard.appendChild(img);
-    favoriteCard.appendChild(countryNameSpan);
+    countryNameSpan.style.overflow = 'hidden';
+    countryNameSpan.style.whiteSpace = 'nowrap';
+    countryNameSpan.style.textOverflow = 'ellipsis'; // Add ellipsis for visual indication
+    countryNameSpan.style.fontWeight = 600;
+    countryNameSpan.style.paddingLeft = "10px";
+    countryNameSpan.style.fontSize = "16px";
+    countryNameSpan.setAttribute('title', fullCountryName); // Store the full name as a tooltip
+
+    // Append image and country name to contentDiv
+    contentDiv.appendChild(img);
+    contentDiv.appendChild(countryNameSpan);
+
+    // Create a div for the remove button
+    const buttonDiv = document.createElement('div');
 
     // Create a button to remove from favorites
     const removeButton = document.createElement('button');
     removeButton.innerHTML = '&times;';
-    removeButton.classList.add('btn', 'btn-link', 'rounded-circle', 'remove-button'); // Add remove-button class
+    removeButton.classList.add('btn', 'btn-link', 'remove-button'); // Add remove-button class
     removeButton.style.border = 'none'; // Remove border to make it a circle
     removeButton.addEventListener('click', () => removeFromFavorites(countryCode));
-    favoriteCard.appendChild(removeButton);
 
+    // Append removeButton to buttonDiv
+    buttonDiv.appendChild(removeButton);
+
+    // Append contentDiv and buttonDiv to favoriteCard
+    favoriteCard.appendChild(contentDiv);
+    favoriteCard.appendChild(buttonDiv);
 
     faviconsContainer.appendChild(favoriteCard);
 
@@ -377,6 +422,28 @@ document.getElementById('searchInput').addEventListener('keyup', function () {
 });
 
 
+
+document.getElementById('darkModeToggle').addEventListener('click', function (event) {
+    const target = event.target;
+
+    // Check if the clicked element has the data-toggle-action attribute
+    const toggleAction = target.dataset.toggleAction;
+    if (toggleAction === 'toggleDarkMode') {
+        toggleDarkMode();
+    }
+});
+// Add a click event listener to handle the toggleDarkMode function
+document.addEventListener('click', function (event) {
+    const target = event.target;
+
+    // Check if the clicked element has the data-toggle-action attribute
+    const toggleAction = target.dataset.toggleAction;
+    if (toggleAction === 'toggleDarkMode') {
+        toggleDarkMode();
+    }
+});
+
+
 // Function to toggle dark mode
 function toggleDarkMode() {
     const body = document.body;
@@ -396,6 +463,7 @@ function setModeText(text) {
 }
 
 
+
 // Check if dark mode is enabled and set it
 const darkMode = localStorage.getItem('darkMode') === 'true';
 if (darkMode) {
@@ -407,9 +475,40 @@ if (darkMode) {
 
 
 
+
+
+
+
+
+
+const overlayContainer = document.getElementById('overlayContainer');
+
+const showOverlay = () => {
+    overlayContainer.style.display = 'flex';
+    overlayContainer.style.flexDirection = 'column';
+    overlayContainer.style.justifyContent = 'center';
+};
+
+const hideOverlay = () => {
+    overlayContainer.style.display = 'none';
+};
+
+
+
+
+
+
+
+
+
+showOverlay(); // Show overlay before fetching data
 fetchCountries()
     .then(countries => {
         allCountries = countries;
         renderCountries(countries);
+        hideOverlay(); // Hide overlay on successful data fetch
     })
-    .catch(error => console.error('Error fetching countries:', error));
+    .catch(error => {
+        console.error('Error fetching countries:', error);
+        hideOverlay(); // Hide overlay on error
+    });
