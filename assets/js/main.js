@@ -309,7 +309,7 @@ function addToFavorites(draggedCard) {
     favoriteCard.appendChild(contentDiv);
     favoriteCard.appendChild(buttonDiv);
 
-    
+
     faviconsContainer.appendChild(favoriteCard);
     saveFavoritesToLocalStorage();
 }
@@ -344,11 +344,6 @@ function removeFromFavorites(countryCode) {
     }
 }
 
-
-/**
- * Loads favorite countries from local storage and adds them to the favorites container.
- */
-
 function loadFavoritesFromLocalStorage() {
     const favorites = JSON.parse(localStorage.getItem('favorites')) || [];
     favorites.forEach(countryCode => {
@@ -358,8 +353,6 @@ function loadFavoritesFromLocalStorage() {
         }
     });
 }
-
-
 
 /**
  * Event listener for the search input.
@@ -380,10 +373,6 @@ document.getElementById('searchInput').addEventListener('keyup', function () {
     handleSearchInput(event);
 });
 
-
-
-
-
 // Event listener for the dark mode toggle button
 document.getElementById('darkModeToggle').addEventListener('click', function (event) {
     const toggleAction = event.currentTarget.dataset.toggleAction;
@@ -398,42 +387,14 @@ document.getElementById('darkModeToggle').addEventListener('click', function (ev
 initializeDarkMode();
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-/**
- * Container element for the overlay.
- */
 const overlayContainer = document.getElementById('overlayContainer');
 
-/**
- * Displays the overlay container.
- */
 const showOverlay = () => {
     overlayContainer.style.display = 'flex';
     overlayContainer.style.flexDirection = 'column';
     overlayContainer.style.justifyContent = 'center';
 };
 
-/**
- * Hides the overlay container.
- */
 const hideOverlay = () => {
     overlayContainer.style.display = 'none';
 };
