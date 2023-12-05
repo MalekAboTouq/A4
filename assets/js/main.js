@@ -1,59 +1,10 @@
-const loadingIndicator = document.getElementById('loadingIndicator');
+import { fetchCountries } from "./modules/apifetch.js";
+import { toggleDarkMode, initializeDarkMode } from './modules/darkTheme.js';
+import { filterByRegion,getCountryCode} from './modules/filter.js';
+import { searchByNameAndRegion } from "./modules/search.js";
+export const loadingIndicator = document.getElementById('loadingIndicator');
 const faviconsContainer = document.querySelector('.favicons');
-let allCountries = [];
-const fetchCountries = async () => {
-    try {
-        // loadingIndicator.style.display = 'block';
-        await new Promise(resolve => setTimeout(resolve, 2000));
-
-        const response = await fetch('https://restcountries.com/v3.1/all');
-        if (!response.ok) {
-            throw new Error(`Error fetching countries: ${response.statusText}`);
-        }
-
-        const data = await response.json();
-        // loadingIndicator.style.display = 'none';
-        return data;
-    } catch (error) {
-        console.error(error.message);
-        const errorMessageElement = document.getElementById('errorMessage');
-        if (errorMessageElement) {
-            errorMessageElement.textContent = 'Error fetching countries. Please try again later.';
-        }
-        loadingIndicator.style.display = 'none';
-        throw error; // rethrow the error to handle it in the main file if needed
-    }
-};
-const filterByRegion = (selectedRegion) => {
-    console.log('Selected Region:', selectedRegion);
-
-    const dropdownButton = document.getElementById('dropdownMenuButton');
-    dropdownButton.textContent = selectedRegion === 'Favorites' ? 'Favorites' : `Filter by`;
-
-    let filteredCountries = [];
-
-    if (selectedRegion === 'All') {
-        filteredCountries = allCountries;
-    } else if (selectedRegion === 'Favorites') {
-        filteredCountries = getFavoriteCountries();
-    } else {
-        filteredCountries = allCountries.filter(country => country.region === selectedRegion);
-    }
-
-    const searchQuery = document.getElementById('searchInput').value;
-    searchByNameAndRegion(searchQuery, selectedRegion);
-
-    if (filteredCountries.length === 0) {
-        const countriesContainer = document.getElementById('countriesContainer');
-        const noresult = document.createElement('p');
-        noresult.textContent = 'No results found';
-        countriesContainer.appendChild(noresult);
-    }
-
-    //Render the filtered countries
-    renderCountries(filteredCountries);
-    dropdownButton.textContent = `${selectedRegion}`;
-};
+export let allCountries = [];
 
 
 // Add event listeners for dropdown items
@@ -64,59 +15,12 @@ document.querySelectorAll('.dropdown-item').forEach(item => {
     });
 });
 
-function getFavoriteCountries() {
-    const favorites = JSON.parse(localStorage.getItem('favorites')) || [];
-    const favoriteCountries = allCountries.filter(country => favorites.includes(getCountryCode(country)));
-    return favoriteCountries;
-}
 
-
-
-//countries by name
-const searchCountriesByName = async (name) => {
-    try {
-        const response = await fetch(`https://restcountries.com/v3.1/name/${name}`);
-        const data = await response.json();
-        return data;
-    } catch (error) {
-        console.error('Error searching countries by name:', error);
-        throw error;
-    }
-};
-
-
-const searchByNameAndRegion = async (query, selectedRegion) => {
-    try {
-        let searchedCountries = [];
-
-        if (query.trim() !== '') {
-            //search by country name
-            searchedCountries = await searchCountriesByName(query);
-
-            searchedCountries = searchedCountries.filter(country => {
-                const countryregion = selectedRegion === 'All' || country.region === selectedRegion;
-                return countryregion;
-            });
-        } else {
-            //if the search query is empty use all countries
-            searchedCountries = allCountries;
-
-            //filter by selected region
-            searchedCountries = searchedCountries.filter(country => {
-                const countryregion = selectedRegion === 'All' || country.region === selectedRegion;
-                return countryregion;
-            });
-        }
-
-        renderCountries(searchedCountries);
-
-        localStorage.setItem('lastSearchQuery', query);
-    } catch (error) {
-        console.error('Error in searchByNameAndRegion:', error);
-    }
-};
-
-const renderCountries = (countries) => {
+/**
+ * Renders countries based on the provided data.
+ * @param {Array} countries - An array of country data.
+ */
+export const renderCountries = (countries) => {
     const countriesContainer = document.getElementById('countriesContainer');
     const isSmallScreen = window.innerWidth < 576;
 
@@ -135,24 +39,32 @@ const renderCountries = (countries) => {
             card.dataset.countryName = name.common;
             const countryCode = getCountryCode(country);
             card.dataset.countryCode = countryCode;
-            card.draggable = true; //card draggable
+            card.draggable = true; // card draggable
 
+            // Check if the country is in favorites
             const isFavorite = isCountryInFavorites(countryCode);
             const starClass = isFavorite && isSmallScreen ? 'filled' : '';
 
+            // Check if the country should be hidden when filtering by favorites
+            const isHidden = document.getElementById('dropdownMenuButton').textContent === 'Favorites' && !isFavorite;
+
             card.innerHTML = `
-                <div class="card">
+                <div class="card" style="display: ${isHidden ? 'none' : 'block'};">
                     <img src="${UrlFlag}" class="card-img-top" style="height: 50%; object-fit: cover;" alt="..." type="button">
-                    <div class="card-body">
+                    <div class="card-body" style="padding-bottom: 0px;">
                         <h2 class="card-title text-truncate" type="button">${name.common}</h2>
                         <p class="card-text text-truncate"><span class="bold">Population:</span> ${population}</p>
                         <p class="card-text text-truncate"><span class="bold">Region:</span> ${region}</p>
                         <p class="card-text text-truncate"><span class="bold">Capital:</span> ${capital}</p>
-                        <button class="favorite-star ${starClass}" data-countryCode="${countryCode}">
-                            &#9733;
-                        </button>
-
+                        
+                        
+                        <div class="starRight">
+                            <button class="favorite-star ${starClass}" data-countryCode="${countryCode}">
+                                &#9733;
+                            </button>
+                        </div>
                     </div>
+                    
                 </div>
             `;
             countriesContainer.appendChild(card);
@@ -163,6 +75,24 @@ const renderCountries = (countries) => {
         loadFavoritesFromLocalStorage();
     }
 };
+
+/**
+ * Updates the favorites list in local storage based on the star click.
+ * @param {string} countryCode - The country code.
+ */
+function updateFavoritesInLocalStorage(countryCode) {
+    const favorites = JSON.parse(localStorage.getItem('favorites')) || [];
+
+    const index = favorites.indexOf(countryCode);
+    if (index !== -1) {
+        favorites.splice(index, 1);
+    } else {
+        favorites.push(countryCode);
+    }
+
+    localStorage.setItem('favorites', JSON.stringify(favorites));
+}
+
 // Add a click event listener to each star
 document.querySelectorAll('.favorite-star').forEach(star => {
     star.addEventListener('click', function () {
@@ -220,20 +150,13 @@ document.querySelectorAll('.favorite-star').forEach(star => {
     });
 });
 
-function updateFavoritesInLocalStorage(countryCode) {
-    const favorites = JSON.parse(localStorage.getItem('favorites')) || [];
 
-    const index = favorites.indexOf(countryCode);
-    if (index !== -1) {
-        favorites.splice(index, 1);
-    } else {
-        favorites.push(countryCode);
-    }
-
-    localStorage.setItem('favorites', JSON.stringify(favorites));
-}
-
-
+/**
+ * Handles the click event for country cards.
+ * Navigates to the country page unless the click is on a favorite star.
+ * @param {string} countryName - The name of the clicked country.
+ * @param {Event} event - The click event.
+ */
 function handleCountryCardClick(countryName, event) {
     if (event.target.classList.contains('favorite-star')) {
         return;
@@ -242,6 +165,9 @@ function handleCountryCardClick(countryName, event) {
     window.location.href = `country.html?country=${encodeURIComponent(countryName)}`;
 }
 
+/**
+ * Adds click event listeners to all country cards.
+ */
 function addCountryCardClickListeners() {
     const countryCards = document.querySelectorAll('.country-card');
     countryCards.forEach((card) => {
@@ -253,8 +179,9 @@ function addCountryCardClickListeners() {
 }
 
 
-// Event listener for country card drag start
-function addCountryCardDragListeners() {
+/**
+ * Adds drag start event listeners to all country cards.
+ */function addCountryCardDragListeners() {
     const countryCards = document.querySelectorAll('.country-card');
     countryCards.forEach((card) => {
         card.addEventListener('dragstart', function (event) {
@@ -264,7 +191,11 @@ function addCountryCardDragListeners() {
 }
 
 
-//drop event to handle dropping
+/**
+ * Handles the drop event for the favicons container.
+ * Adds the dragged country card to favorites.
+ * @param {Event} event - The drop event.
+ */
 faviconsContainer.addEventListener('drop', function (event) {
     event.preventDefault();
     const countryCode = event.dataTransfer.getData('text/plain');
@@ -274,17 +205,30 @@ faviconsContainer.addEventListener('drop', function (event) {
     event.dataTransfer.clearData();
 });
 
-//dragover event to allow dropping
+
+/**
+ * Handles the dragover event for the favicons container.
+ * Displays a dashed border to indicate drop zone.
+ * @param {Event} event - The dragover event.
+ */
 faviconsContainer.addEventListener('dragover', function (event) {
     event.preventDefault();
     this.style.border = '2px dashed #27ae60';
 });
 
+/**
+ * Handles the dragleave event for the favicons container.
+ * Removes the dashed border on drag leave.
+ */
 faviconsContainer.addEventListener('dragleave', function () {
     this.style.border = 'none';
 });
 
-
+/**
+ * Handles the drop event for the favicons container.
+ * Removes the dashed border and adds the dragged country card to favorites.
+ * @param {Event} event - The drop event.
+ */
 faviconsContainer.addEventListener('drop', function (event) {
     event.preventDefault();
     this.style.border = 'none';
@@ -296,31 +240,31 @@ faviconsContainer.addEventListener('drop', function (event) {
     event.dataTransfer.clearData();
 });
 
-
-
+/**
+ * Adds a country card to the favorites container.
+ * @param {HTMLElement} draggedCard - The dragged country card.
+ */
 function addToFavorites(draggedCard) {
     const countryCode = draggedCard.dataset.countryCode;
     const countryName = draggedCard.dataset.countryName;
 
-    // Check if the country is already in favorites
+    //Check if the country is already in favorites
     if (faviconsContainer.querySelector(`[data-country-code="${countryCode}"]`)) {
         return;
     }
 
-    // Get the full country name
+    //full country name
     const fullCountryName = draggedCard.querySelector('.card-title').textContent;
 
     const favoriteCard = document.createElement('div');
     favoriteCard.classList.add('favorite-card', 'd-flex', 'align-items-center', 'justify-content-between');
     favoriteCard.dataset.countryCode = countryCode;
 
-    // Create a div for content
+    //div for content
     const contentDiv = document.createElement('div');
     contentDiv.classList.add('d-flex', 'align-items-center');
     contentDiv.style.width = '154px'; // Set the desired width
 
-    
-    // Small image
     const img = document.createElement('img');
     img.src = draggedCard.querySelector('img').src;
     img.alt = countryCode;
@@ -328,7 +272,7 @@ function addToFavorites(draggedCard) {
     img.style.height = '20px';
     img.style.cursor = 'pointer';
     img.style.borderRadius = '0.3rem';
-    img.addEventListener('click', () => handleCountryCardClick(countryCode));
+    img.addEventListener('click', () => window.location.href = `country.html?country=${encodeURIComponent(countryName)}`);
 
     // Span for country name
     const countryNameSpan = document.createElement('span');
@@ -340,7 +284,9 @@ function addToFavorites(draggedCard) {
     countryNameSpan.style.fontWeight = 600;
     countryNameSpan.style.paddingLeft = "10px";
     countryNameSpan.style.fontSize = "16px";
+    countryNameSpan.style.cursor = 'pointer';
     countryNameSpan.setAttribute('title', fullCountryName); // Store the full name as a tooltip
+    countryNameSpan.addEventListener('click', () => window.location.href = `country.html?country=${encodeURIComponent(countryName)}`);
 
     // Append image and country name to contentDiv
     contentDiv.appendChild(img);
@@ -363,27 +309,46 @@ function addToFavorites(draggedCard) {
     favoriteCard.appendChild(contentDiv);
     favoriteCard.appendChild(buttonDiv);
 
+    
     faviconsContainer.appendChild(favoriteCard);
-
     saveFavoritesToLocalStorage();
 }
 
 
-
+/**
+ * Saves the current favorites to local storage.
+ */
 function saveFavoritesToLocalStorage() {
     const favorites = Array.from(faviconsContainer.children).map(card => card.dataset.countryCode);
     localStorage.setItem('favorites', JSON.stringify(favorites));
 }
 
+
+/**
+ * Removes a country from the favorites container and updates local storage.
+ * @param {string} countryCode - The country code to remove.
+ */
 function removeFromFavorites(countryCode) {
     const favoriteCard = faviconsContainer.querySelector(`[data-country-code="${countryCode}"]`);
     if (favoriteCard) {
         faviconsContainer.removeChild(favoriteCard);
         saveFavoritesToLocalStorage();
+
+        // Retrieve the current selected region
+        const selectedRegion = document.getElementById('dropdownMenuButton').textContent;
+        
+        // If the current region is 'Favorites', re-render the countries to hide the removed country
+        if (selectedRegion === 'Favorites') {
+            filterByRegion('Favorites');
+        }
     }
 }
 
-//Load favorites from local storage
+
+/**
+ * Loads favorite countries from local storage and adds them to the favorites container.
+ */
+
 function loadFavoritesFromLocalStorage() {
     const favorites = JSON.parse(localStorage.getItem('favorites')) || [];
     favorites.forEach(countryCode => {
@@ -394,71 +359,43 @@ function loadFavoritesFromLocalStorage() {
     });
 }
 
-//Function to get a unique id for the country
-function getCountryCode(country) {
-    return country.name.common;
-}
 
 
-
-//Event listener for search input
+/**
+ * Event listener for the search input.
+ * Executes a search based on user input and selected region.
+ */
 document.getElementById('searchInput').addEventListener('keyup', function () {
-    const searchQuery = this.value;
-    const selectedRegion = document.getElementById('dropdownMenuButton').dataset.selectedRegion || 'All';
-    searchByNameAndRegion(searchQuery, selectedRegion);
+    /**
+     * Handles the keyup event for the search input.
+     * @param {KeyboardEvent} event - The keyup event.
+     */
+    const handleSearchInput = (event) => {
+        const searchQuery = this.value;
+        const selectedRegion = document.getElementById('dropdownMenuButton').dataset.selectedRegion || 'All';
+        searchByNameAndRegion(searchQuery, selectedRegion);
+    };
+
+    // Execute the handleSearchInput function on keyup
+    handleSearchInput(event);
 });
 
 
 
+
+
+// Event listener for the dark mode toggle button
 document.getElementById('darkModeToggle').addEventListener('click', function (event) {
-    const target = event.target;
-
-    // Check if the clicked element has the data-toggle-action attribute
-    const toggleAction = target.dataset.toggleAction;
-    if (toggleAction === 'toggleDarkMode') {
-        toggleDarkMode();
-    }
-});
-// Add a click event listener to handle the toggleDarkMode function
-document.addEventListener('click', function (event) {
-    const target = event.target;
-
-    // Check if the clicked element has the data-toggle-action attribute
-    const toggleAction = target.dataset.toggleAction;
+    const toggleAction = event.currentTarget.dataset.toggleAction;
     if (toggleAction === 'toggleDarkMode') {
         toggleDarkMode();
     }
 });
 
+// ... (existing code)
 
-// Function to toggle dark mode
-function toggleDarkMode() {
-    const body = document.body;
-    const isDarkMode = body.classList.toggle('dark-mode');
-    const modeText = isDarkMode ? 'Light mode' : 'Dark mode';
-    localStorage.setItem('darkMode', isDarkMode);
-    setModeText(modeText);
-}
-
-
-//set mode text
-function setModeText(text) {
-    const modeTextElement = document.getElementById('modeText');
-    if (modeTextElement) {
-        modeTextElement.textContent = text;
-    }
-}
-
-
-
-// Check if dark mode is enabled and set it
-const darkMode = localStorage.getItem('darkMode') === 'true';
-if (darkMode) {
-    document.body.classList.add('dark-mode');
-    setModeText('Light mode');
-} else {
-    setModeText('Dark mode');
-}
+// Checks if dark mode is enabled and sets it accordingly.
+initializeDarkMode();
 
 
 
@@ -468,27 +405,43 @@ if (darkMode) {
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+/**
+ * Container element for the overlay.
+ */
 const overlayContainer = document.getElementById('overlayContainer');
 
+/**
+ * Displays the overlay container.
+ */
 const showOverlay = () => {
     overlayContainer.style.display = 'flex';
     overlayContainer.style.flexDirection = 'column';
     overlayContainer.style.justifyContent = 'center';
 };
 
+/**
+ * Hides the overlay container.
+ */
 const hideOverlay = () => {
     overlayContainer.style.display = 'none';
 };
 
+// Show overlay before fetching data
+showOverlay();
 
-
-
-
-
-
-
-
-showOverlay(); // Show overlay before fetching data
+// Fetch countries and render them
 fetchCountries()
     .then(countries => {
         allCountries = countries;
